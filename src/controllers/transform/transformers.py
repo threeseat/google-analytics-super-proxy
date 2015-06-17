@@ -509,7 +509,10 @@ def GetDataTableRows(content, data_types=None):
         data_type = column_headers[index].get('dataType')
         convert_to = data_types.get(data_type, data_types.get(UNKNOWN_LABEL))
         if convert_to:
-          data_row_value = convert_to(data)
+          try:
+            data_row_value = convert_to(data)
+          except UnicodeEncodeError:
+            data_row_value = data.encode('UTF-8');  
         else:
           data_row_value = data.encode('UTF-8')
         data_row.update({
