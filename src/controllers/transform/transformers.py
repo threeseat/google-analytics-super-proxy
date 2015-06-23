@@ -28,6 +28,7 @@
   TransformDataTableResponse: Transform and render a Core Reporting API response
       as a Data Table response.
   TransformTsv: Transform and render a Core Reporting API response as TSV.
+  TransformRSS: Transform and render a Core Reporting API response as RSS. (RJF)
   RemoveKeys: Removes key/value pairs from a JSON response.
   GetDataTableSchema: Get a Data Table schema from Core Reporting API Response.
   GetDataTableRows: Get Data Table rows from Core Reporting API Response.
@@ -39,6 +40,7 @@ __author__ = 'pete.frisella@gmail.com (Pete Frisella)'
 
 import cStringIO
 import urllib
+import re
 
 from libs.csv_writer import csv_writer
 from libs.gviz_api import gviz_api
@@ -98,6 +100,8 @@ def GetTransform(response_format='json', tqx=None):
     output = cStringIO.StringIO()
     writer = csv_writer.GetTsvStringPrinter(output)
     transform = TransformTsv(writer, output)
+  elif response_format == 'rss':
+    transform = TransformRss()
   else:
     transform = TransformJson()
 
@@ -374,6 +378,67 @@ class TransformTsv(object):
       status: An integer representing the HTTP status code to send.
     """
     webapp.RenderTsv(content, status)
+
+
+class TransformRss(object):
+  """A transform to render a Core Reporting response as an RSS"""
+
+  def Transform(self, content):
+    """Transforms a Core Reporting API Response to RSS.
+
+    Args:
+      content: A dict representing the Core Reporting API JSON response to
+               transform.
+
+    Returns:
+      A UTF-8 string containing an RSS feed with the JSON response contents
+    """
+    rss_output = ''
+    link_index = -1
+
+    if content:
+      column_headers = content.get('columnHeaders', [])
+      rows = content.get('rows', [])
+
+      if column_headers:
+        # find which column has URL
+        for header in column_headers:
+          name = header.get('name')
+          if (re.search('Path', name, re.I)):
+            link_index = column_headers.index(header)
+            break
+    
+      if rows: #have entries, so generate RSS
+        rss_output = '''<?xml version="1.0"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Most Read This Week on Physics Today</title>
+    <link>http://scitation.aip.org/content/aip/magazine/physicstoday</link>
+    <description>The 20 most popular Physics Today articles from the past seven days.</description>
+'''
+        for row in rows:
+          #output each row as an RSS item
+          link = row[link_index]
+          if (not(re.match('https?://', link))):
+            link = 'http://' + link
+          title = row[0]
+          rss_output = rss_output + '    <item>\n      <title>' +\
+                       title + '</title>\n      <link>' +\
+                       link + '</link>\n      <guid isPermaLink="true">' +\
+                       link + '</guid>\n    </item>\n' 
+        rss_output = rss_output + '\n  </channel>\n</rss>'
+        
+    return rss_output
+
+  def Render(self, webapp, content, status):
+    """Renders a Core Reporting API response in RSS.
+
+    Args:
+      webapp: The webapp2 object to use to render the response.
+      content: A dict representing the JSON content to render.
+      status: An integer representing the HTTP status code to send.
+    """
+    webapp.RenderRss(content, status)
 
 
 def RemoveKeys(content, keys_to_remove=PRIVATE_PROPERTIES):

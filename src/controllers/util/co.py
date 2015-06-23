@@ -52,6 +52,9 @@ SUPPORTED_FORMATS = {
     },
     'tsv': {
         'label': 'TSV for Excel'
+    },
+    'rss': {
+        'label': 'RSS XML'
     }
 }
 

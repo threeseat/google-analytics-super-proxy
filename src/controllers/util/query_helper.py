@@ -423,9 +423,10 @@ def GetPublicEndpointResponse(
     if not transformed_response_content:
       try:
         transformed_response_content = transform.Transform(response_content)
-      except (KeyError, TypeError, AttributeError):
+      except (KeyError, TypeError, AttributeError) as e :
         # If the transformation fails then return the original content.
         transformed_response_content = response_content
+        transformed_response_content['error'] = e
 
     memcache_keys = {
         'api_query': api_query,

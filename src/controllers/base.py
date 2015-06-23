@@ -146,3 +146,15 @@ class BaseHandler(webapp2.RequestHandler):
         'attachment; filename=query_response.tsv')
     self.response.set_status(status)
     self.response.write(tsv_content)
+
+  def RenderRss(self, rss_content, status=200):
+    """Renders RSS content.
+
+    Args:
+      rss_content: The RSS content to output.
+      status: The HTTP status code to send.
+    """
+    self.response.headers['Content-Type'] = 'text/xml; charset=UTF-8'
+    self.response.headers['Content-Disposition'] = 'inline'
+    self.response.set_status(status)
+    self.response.write(rss_content)
