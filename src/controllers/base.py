@@ -158,3 +158,15 @@ class BaseHandler(webapp2.RequestHandler):
     self.response.headers['Content-Disposition'] = 'inline'
     self.response.set_status(status)
     self.response.write(rss_content)
+
+  def RenderAtom(self, atom_content, status=200):
+    """Renders Atom content.
+
+    Args:
+      atom_content: The Atom content to output.
+      status: The HTTP status code to send.
+    """
+    self.response.headers['Content-Type'] = 'application/atom+xml; charset=UTF-8'
+    self.response.headers['Content-Disposition'] = 'inline'
+    self.response.set_status(status)
+    self.response.write(atom_content)

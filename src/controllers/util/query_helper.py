@@ -271,6 +271,9 @@ def FetchApiQueryResponse(api_query):
   except (ValueError, TypeError, AttributeError, urlfetch.Error), e:
     return {'error': str(e)}
 
+#rjf
+  response_content['modified'] = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+#
   return response_content
 
 

@@ -28,7 +28,8 @@
   TransformDataTableResponse: Transform and render a Core Reporting API response
       as a Data Table response.
   TransformTsv: Transform and render a Core Reporting API response as TSV.
-  TransformRSS: Transform and render a Core Reporting API response as RSS. (RJF)
+  TransformRss: Transform and render a Core Reporting API response as RSS. (RJF)
+  TransformAtom: Transform and render a Core Reporting API resonse as Atom feed. (RJF)
   RemoveKeys: Removes key/value pairs from a JSON response.
   GetDataTableSchema: Get a Data Table schema from Core Reporting API Response.
   GetDataTableRows: Get Data Table rows from Core Reporting API Response.
@@ -41,6 +42,7 @@ __author__ = 'pete.frisella@gmail.com (Pete Frisella)'
 import cStringIO
 import urllib
 import re
+import datetime
 
 from libs.csv_writer import csv_writer
 from libs.gviz_api import gviz_api
@@ -102,6 +104,8 @@ def GetTransform(response_format='json', tqx=None):
     transform = TransformTsv(writer, output)
   elif response_format == 'rss':
     transform = TransformRss()
+  elif response_format == 'atom':
+    transform = TransformAtom()
   else:
     transform = TransformJson()
 
@@ -379,7 +383,7 @@ class TransformTsv(object):
     """
     webapp.RenderTsv(content, status)
 
-
+#rjf:
 class TransformRss(object):
   """A transform to render a Core Reporting response as an RSS"""
 
@@ -399,6 +403,10 @@ class TransformRss(object):
     if content:
       column_headers = content.get('columnHeaders', [])
       rows = content.get('rows', [])
+      pubDateISO = content.get('modified') #string in ISO 8601 format
+      pubDate = datetime.datetime.strptime(pubDateISO, "%Y-%m-%dT%H:%M:%SZ")\
+                .strftime("%d %b %Y %H:%M:%S GMT")
+
 
       if column_headers:
         # find which column has URL
@@ -416,6 +424,8 @@ class TransformRss(object):
     <link>http://scitation.aip.org/content/aip/magazine/physicstoday</link>
     <description>The 20 most popular Physics Today articles from the past seven days.</description>
 '''
+        if (pubDate):
+          rss_output = rss_output + '    <pubDate>' + pubDate + '</pubDate>\n'
         for row in rows:
           #output each row as an RSS item
           link = row[link_index]
@@ -426,7 +436,7 @@ class TransformRss(object):
                        title + '</title>\n      <link>' +\
                        link + '</link>\n      <guid isPermaLink="true">' +\
                        link + '</guid>\n    </item>\n' 
-        rss_output = rss_output + '\n  </channel>\n</rss>'
+        rss_output = rss_output + '  </channel>\n</rss>'
         
     return rss_output
 
@@ -439,6 +449,72 @@ class TransformRss(object):
       status: An integer representing the HTTP status code to send.
     """
     webapp.RenderRss(content, status)
+
+
+class TransformAtom(object):
+  """A transform to render a Core Reporting response as an RSS"""
+
+  def Transform(self, content):
+    """Transforms a Core Reporting API Response to RSS.
+
+    Args:
+      content: A dict representing the Core Reporting API JSON response to
+               transform.
+
+    Returns:
+      A UTF-8 string containing an RSS feed with the JSON response contents
+    """
+    atom_output = ''
+    link_index = -1
+
+    if content:
+      column_headers = content.get('columnHeaders', [])
+      rows = content.get('rows', [])
+      updated = content.get('modified')
+
+      if column_headers:
+        # find which column has URL
+        for header in column_headers:
+          name = header.get('name')
+          if (re.search('Path', name, re.I)):
+            link_index = column_headers.index(header)
+            break
+    
+      if rows: #have entries, so generate feed
+        atom_output = '''<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Most Read This Week on Physics Today</title>
+  <subtitle>The 20 most popular Physics Today articles from the past seven days.</subtitle>
+  <link href="http://scitation.aip.org/content/aip/magazine/physicstoday"/>
+  <id>http://www.physicstoday.org/</id>
+  <author><name>Physics Today</name></author>
+'''
+        if (updated):
+          atom_output = atom_output + ' <updated>' + updated + '</updated>\n'
+        for row in rows:
+          #output each row as an RSS item
+          link = row[link_index]
+          if (not(re.match('https?://', link))):
+            link = 'http://' + link
+          title = row[0]
+          atom_output = atom_output + ' <entry>\n    <title>' +\
+                       title + '</title>\n    <link rel="alternate" href="' +\
+                       link + '"/>\n    <id>' +\
+                       link + '</id>\n    <updated>' +\
+                       updated + '</updated>\n  </entry>\n' 
+        atom_output = atom_output + '</feed>'
+        
+    return atom_output
+
+  def Render(self, webapp, content, status):
+    """Renders a Core Reporting API response in RSS.
+
+    Args:
+      webapp: The webapp2 object to use to render the response.
+      content: A dict representing the JSON content to render.
+      status: An integer representing the HTTP status code to send.
+    """
+    webapp.RenderAtom(content, status)
 
 
 def RemoveKeys(content, keys_to_remove=PRIVATE_PROPERTIES):

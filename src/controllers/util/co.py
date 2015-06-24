@@ -55,6 +55,9 @@ SUPPORTED_FORMATS = {
     },
     'rss': {
         'label': 'RSS XML'
+    },
+    'atom': {
+        'label': 'Atom feed'
     }
 }
 
